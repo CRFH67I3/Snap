@@ -5,8 +5,11 @@ struct HomeView: View {
     @State private var status: PHAuthorizationStatus = .notDetermined
     @State private var groups: [ScreenshotGroup] = []
     @State private var isLoading = true
-    @State private var showingPicker = false
-    @State private var pickedGroup: ScreenshotGroup?
+    @State private var showingImportFlow = false
+
+    /// 手动导入流程的中间数据：选中的图片与创建时间。
+    @State private var importedImages: [UIImage] = []
+    @State private var importedDates: [Date] = []
 
     var body: some View {
         NavigationStack {
@@ -31,23 +34,13 @@ struct HomeView: View {
                     .disabled(isLoading)
                 }
             }
-            .sheet(isPresented: $showingPicker) {
-                ImagePicker(
-                    onPick: { images, dates in
-                        pickedGroup = PhotoLibraryService.group(fromPickedImages: images, creationDates: dates)
-                    },
-                    onDismiss: { showingPicker = false }
+            .sheet(isPresented: $showingImportFlow) {
+                ImportFlowView(
+                    images: $importedImages,
+                    dates: $importedDates,
+                    onFinish: { showingImportFlow = false },
+                    onCancel: { showingImportFlow = false }
                 )
-            }
-            .sheet(item: $pickedGroup) { group in
-                NavigationStack {
-                    StitchEditorView(group: group)
-                        .toolbar {
-                            ToolbarItem(placement: .confirmationAction) {
-                                Button("完成") { pickedGroup = nil }
-                            }
-                        }
-                }
             }
         }
         .task {
@@ -69,7 +62,7 @@ struct HomeView: View {
             } else if groups.isEmpty {
                 VStack(spacing: 16) {
                     Button {
-                        showingPicker = true
+                        showingImportFlow = true
                     } label: {
                         Label("选择更多图片", systemImage: "photo.badge.plus")
                             .frame(maxWidth: .infinity)
