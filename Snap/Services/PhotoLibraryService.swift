@@ -30,6 +30,15 @@ enum PhotoLibraryService {
         return group(items: items)
     }
 
+    /// Builds a stitch group from assets the user picked manually via the system
+    /// photo picker. Items are put in reading order (oldest first) and, like the
+    /// automatic grouping, need at least two images to be useful.
+    static func group(fromPickedAssets assets: [PHAsset]) -> ScreenshotGroup? {
+        let items = assets.map { ScreenshotItem(asset: $0) }
+        guard items.count >= 2 else { return nil }
+        return ScreenshotGroup(items: items)
+    }
+
     /// Splits newest-first screenshots into runs, returning each run in reading
     /// order (oldest first) because that is the order they stitch in.
     static func group(items: [ScreenshotItem]) -> [ScreenshotGroup] {

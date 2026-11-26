@@ -5,6 +5,19 @@ struct HomeView: View {
     @State private var status: PHAuthorizationStatus = .notDetermined
     @State private var groups: [ScreenshotGroup] = []
     @State private var isLoading = true
+    @State private var sheetState: SheetState?
+
+    private enum SheetState: Identifiable {
+        case picker
+        case editor(ScreenshotGroup)
+
+        var id: Int {
+            switch self {
+            case .picker: return 0
+            case .editor: return 1
+            }
+        }
+    }
 
     var body: some View {
         NavigationStack {
@@ -29,6 +42,27 @@ struct HomeView: View {
                     .disabled(isLoading)
                 }
             }
+            .sheet(item: $sheetState) { state in
+                switch state {
+                case .picker:
+                    ImagePicker { assets in
+                        if let group = PhotoLibraryService.group(fromPickedAssets: assets) {
+                            sheetState = .editor(group)
+                        } else {
+                            sheetState = nil
+                        }
+                    }
+                case .editor(let group):
+                    NavigationStack {
+                        StitchEditorView(group: group)
+                            .toolbar {
+                                ToolbarItem(placement: .confirmationAction) {
+                                    Button("完成") { sheetState = nil }
+                                }
+                            }
+                    }
+                }
+            }
         }
         .task {
             status = await PhotoLibraryService.requestAuthorization()
@@ -47,11 +81,22 @@ struct HomeView: View {
             if isLoading {
                 HStack { ProgressView(); Text("正在查找截图…") }
             } else if groups.isEmpty {
-                ContentUnavailableView(
-                    "没有找到成组的截图",
-                    systemImage: "photo.on.rectangle.angled",
-                    description: Text("连续拍摄的两张以上、尺寸相同的截图会显示在这里。")
-                )
+                VStack(spacing: 16) {
+                    Button {
+                        sheetState = .picker
+                    } label: {
+                        Label("选择更多图片", systemImage: "photo.badge.plus")
+                            .frame(maxWidth: .infinity)
+                    }
+                    .buttonStyle(.borderedProminent)
+
+                    ContentUnavailableView(
+                        "没有找到成组的截图",
+                        systemImage: "photo.on.rectangle.angled",
+                        description: Text("连续拍摄的两张以上、尺寸相同的截图会显示在这里。也可以点上方按钮手动选择图片拼接。")
+                    )
+                }
+                .listRowInsets(EdgeInsets())
             } else {
                 ForEach(groups) { group in
                     NavigationLink {
