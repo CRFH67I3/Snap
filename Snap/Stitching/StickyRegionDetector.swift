@@ -38,11 +38,16 @@ enum StickyRegionDetector {
         // The two estimates fail in opposite directions: the in-place scan can
         // over-reach across uniform content, while the motion-derived one falls
         // short when its matching run was cut off by something animating.
-        // Taking the smaller of each keeps real content in the image, at the
-        // cost of at most a thin sliver of chrome repeating at a seam.
+        //
+        // We take the LARGER of each. Under-estimating a frozen band is much
+        // worse than over-estimating it: a missed bottom band (e.g. Safari's
+        // address bar) makes that chrome count as scrolling content, so it gets
+        // drawn again at every seam. Over-estimating only risks dropping a thin
+        // strip of uniform content, and `maxBandFraction` already caps how far
+        // either estimate can reach.
         return Regions(
-            top: min(inPlace.top, fromMotion.top),
-            bottom: min(inPlace.bottom, fromMotion.bottom)
+            top: max(inPlace.top, fromMotion.top),
+            bottom: max(inPlace.bottom, fromMotion.bottom)
         )
     }
 

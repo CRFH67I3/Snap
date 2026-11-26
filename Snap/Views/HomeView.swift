@@ -5,19 +5,8 @@ struct HomeView: View {
     @State private var status: PHAuthorizationStatus = .notDetermined
     @State private var groups: [ScreenshotGroup] = []
     @State private var isLoading = true
-    @State private var sheetState: SheetState?
-
-    private enum SheetState: Identifiable {
-        case picker
-        case editor(ScreenshotGroup)
-
-        var id: Int {
-            switch self {
-            case .picker: return 0
-            case .editor: return 1
-            }
-        }
-    }
+    @State private var showingPicker = false
+    @State private var pickedGroup: ScreenshotGroup?
 
     var body: some View {
         NavigationStack {
@@ -42,25 +31,22 @@ struct HomeView: View {
                     .disabled(isLoading)
                 }
             }
-            .sheet(item: $sheetState) { state in
-                switch state {
-                case .picker:
-                    ImagePicker { assets in
-                        if let group = PhotoLibraryService.group(fromPickedAssets: assets) {
-                            sheetState = .editor(group)
-                        } else {
-                            sheetState = nil
-                        }
-                    }
-                case .editor(let group):
-                    NavigationStack {
-                        StitchEditorView(group: group)
-                            .toolbar {
-                                ToolbarItem(placement: .confirmationAction) {
-                                    Button("完成") { sheetState = nil }
-                                }
+            .sheet(isPresented: $showingPicker) {
+                ImagePicker(
+                    onPick: { images, dates in
+                        pickedGroup = PhotoLibraryService.group(fromPickedImages: images, creationDates: dates)
+                    },
+                    onDismiss: { showingPicker = false }
+                )
+            }
+            .sheet(item: $pickedGroup) { group in
+                NavigationStack {
+                    StitchEditorView(group: group)
+                        .toolbar {
+                            ToolbarItem(placement: .confirmationAction) {
+                                Button("完成") { pickedGroup = nil }
                             }
-                    }
+                        }
                 }
             }
         }
@@ -83,7 +69,7 @@ struct HomeView: View {
             } else if groups.isEmpty {
                 VStack(spacing: 16) {
                     Button {
-                        sheetState = .picker
+                        showingPicker = true
                     } label: {
                         Label("选择更多图片", systemImage: "photo.badge.plus")
                             .frame(maxWidth: .infinity)

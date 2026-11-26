@@ -30,11 +30,20 @@ enum PhotoLibraryService {
         return group(items: items)
     }
 
-    /// Builds a stitch group from assets the user picked manually via the system
-    /// photo picker. Items are put in reading order (oldest first) and, like the
-    /// automatic grouping, need at least two images to be useful.
-    static func group(fromPickedAssets assets: [PHAsset]) -> ScreenshotGroup? {
-        let items = assets.map { ScreenshotItem(asset: $0) }
+    /// Builds a stitch group from images the user picked manually via the system
+    /// photo picker. Picked items carry their image directly, so this works even
+    /// when asset identifiers are unavailable (e.g. limited photo access).
+    /// Items are put in reading order (oldest first); at least two are needed.
+    static func group(fromPickedImages images: [UIImage], creationDates: [Date]) -> ScreenshotGroup? {
+        let pairs = Array(zip(images, creationDates))
+        var items: [ScreenshotItem] = []
+        for (index, pair) in pairs.enumerated() {
+            items.append(ScreenshotItem(
+                image: pair.0,
+                id: "picked-\(index)-\(pair.1.timeIntervalSince1970)",
+                creationDate: pair.1
+            ))
+        }
         guard items.count >= 2 else { return nil }
         return ScreenshotGroup(items: items)
     }
@@ -63,6 +72,10 @@ enum PhotoLibraryService {
     }
 
     static func loadThumbnail(for item: ScreenshotItem, targetSize: CGSize) async -> UIImage? {
+        // Manually picked items already carry their image.
+        if let image = item.image { return image }
+        guard let asset = item.asset else { return nil }
+
         let options = PHImageRequestOptions()
         options.deliveryMode = .opportunistic
         options.resizeMode = .fast
@@ -71,7 +84,7 @@ enum PhotoLibraryService {
         return await withCheckedContinuation { continuation in
             var resumed = false
             PHImageManager.default().requestImage(
-                for: item.asset,
+                for: asset,
                 targetSize: targetSize,
                 contentMode: .aspectFill,
                 options: options
@@ -90,6 +103,11 @@ enum PhotoLibraryService {
     /// whole stitching approach depends on identical content producing identical
     /// bytes, so no resizing or re-encoding may happen on the way in.
     static func loadFullResolutionImage(for item: ScreenshotItem) async -> CGImage? {
+        // Manually picked items carry their own image; use its underlying CGImage
+        // directly so no re-encoding happens.
+        if let image = item.image { return image.cgImage }
+
+        guard let asset = item.asset else { return nil }
         let options = PHImageRequestOptions()
         options.deliveryMode = .highQualityFormat
         options.resizeMode = .none
@@ -98,7 +116,7 @@ enum PhotoLibraryService {
 
         return await withCheckedContinuation { continuation in
             PHImageManager.default().requestImageDataAndOrientation(
-                for: item.asset,
+                for: asset,
                 options: options
             ) { data, _, _, _ in
                 guard let data,
