@@ -33,7 +33,7 @@ struct OrderConfirmView: View {
                 ForEach(Array(items.enumerated()), id: \.element.id) { index, item in
                     HStack(spacing: 12) {
                         Text("\(index + 1)")
-                            .font(.caption.monospacedDigit.weight(.semibold))
+                            .font(.caption.monospacedDigit().weight(.semibold))
                             .foregroundStyle(.secondary)
                             .frame(width: 20)
 
