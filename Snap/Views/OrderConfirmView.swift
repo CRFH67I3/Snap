@@ -21,6 +21,13 @@ struct OrderConfirmView: View {
         let date: Date
     }
 
+    /// 显示到毫秒（3 位小数秒），便于区分相邻截图的先后顺序。
+    private static let timeFormatter: DateFormatter = {
+        let f = DateFormatter()
+        f.dateFormat = "HH:mm:ss.SSS"
+        return f
+    }()
+
     var body: some View {
         VStack(spacing: 0) {
             Text("拖动调整顺序，从上到下即长图从上到下")
@@ -43,8 +50,8 @@ struct OrderConfirmView: View {
                             .frame(width: 44, height: 66)
                             .clipShape(RoundedRectangle(cornerRadius: 5))
 
-                        Text(item.date.formatted(date: .abbreviated, time: .shortened))
-                            .font(.caption)
+                        Text(Self.timeFormatter.string(from: item.date))
+                            .font(.caption.monospacedDigit())
                             .foregroundStyle(.secondary)
 
                         Spacer()
