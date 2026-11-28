@@ -104,9 +104,11 @@ struct HomeView: View {
     private func reload() {
         isLoading = true
         Task.detached(priority: .userInitiated) {
-            let found = PhotoLibraryService.fetchScreenshotGroups()
+            let auto = PhotoLibraryService.fetchScreenshotGroups()
+            let picked = PickedGroupStore.loadAll()
             await MainActor.run {
-                groups = found
+                // 手动选择的组放前面，自动检测的放后面。
+                groups = picked + auto
                 isLoading = false
             }
         }

@@ -33,11 +33,12 @@ struct ImportFlowView: View {
                             AppLog.write("OrderConfirm onConfirm: \(orderedImages.count) images")
                             images = orderedImages
                             dates = orderedDates
-                            if let group = PhotoLibraryService.group(fromPickedImages: images, creationDates: dates) {
-                                AppLog.write("group created with \(group.count) items -> editing")
-                                phase = .editing(group)
+                            // 持久化保存，刷新/重启后仍显示在主界面列表。
+                            if let saved = PickedGroupStore.save(images: orderedImages, dates: orderedDates) {
+                                AppLog.write("group saved with \(saved.count) items -> editing")
+                                phase = .editing(saved)
                             } else {
-                                AppLog.write("group creation FAILED (<2 images) -> cancel")
+                                AppLog.write("group save FAILED (<2 images) -> cancel")
                                 onCancel()
                             }
                         },
