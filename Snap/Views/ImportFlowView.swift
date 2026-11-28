@@ -17,6 +17,18 @@ struct ImportFlowView: View {
 
     @State private var phase: Phase = .picking
 
+    /// 保存为唯一的一组（清空旧组），成功返回可用于编辑器的组。
+    private func saveAsOnlyGroup(_ imgs: [UIImage], _ ds: [Date]) -> ScreenshotGroup? {
+        images = imgs
+        dates = ds
+        guard let saved = PickedGroupStore.save(images: imgs, dates: ds) else {
+            AppLog.write("group save FAILED (<2 images)")
+            return nil
+        }
+        AppLog.write("group saved with \(saved.count) items")
+        return saved
+    }
+
     var body: some View {
         Group {
             switch phase {
@@ -31,20 +43,20 @@ struct ImportFlowView: View {
                         dates: dates,
                         onConfirm: { orderedImages, orderedDates in
                             AppLog.write("OrderConfirm onConfirm: \(orderedImages.count) images")
-                            images = orderedImages
-                            dates = orderedDates
-                            // 持久化保存，刷新/重启后仍显示在主界面列表。
-                            if let saved = PickedGroupStore.save(images: orderedImages, dates: orderedDates) {
-                                AppLog.write("group saved with \(saved.count) items -> editing")
+                            if let saved = saveAsOnlyGroup(orderedImages, orderedDates) {
                                 phase = .editing(saved)
                             } else {
-                                AppLog.write("group save FAILED (<2 images) -> cancel")
                                 onCancel()
                             }
                         },
-                        onCancel: {
-                            AppLog.write("OrderConfirm cancelled")
-                            onCancel()
+                        onCancel: { orderedImages, orderedDates in
+                            AppLog.write("OrderConfirm cancelled -> still save as only group")
+                            // 取消也当作唯一一次选择：保存后直接返回主界面。
+                            if saveAsOnlyGroup(orderedImages, orderedDates) != nil {
+                                onFinish()
+                            } else {
+                                onCancel()
+                            }
                         }
                     )
                 }

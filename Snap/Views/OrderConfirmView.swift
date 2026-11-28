@@ -5,11 +5,14 @@ import SwiftUI
 /// 作为纯内容视图，由外层 NavigationStack 管理导航。
 struct OrderConfirmView: View {
     @State private var items: [Item]
-    /// 确认后按当前顺序回传（从早到晚、从上到下）。
+    /// 下一步：按当前顺序回传，由外层保存为唯一组并进入编辑器。
     let onConfirm: ([UIImage], [Date]) -> Void
-    let onCancel: () -> Void
+    /// 取消：同样回传当前图片，由外层保存为唯一组但不进入编辑器。
+    let onCancel: ([UIImage], [Date]) -> Void
 
-    init(images: [UIImage], dates: [Date], onConfirm: @escaping ([UIImage], [Date]) -> Void, onCancel: @escaping () -> Void) {
+    init(images: [UIImage], dates: [Date],
+         onConfirm: @escaping ([UIImage], [Date]) -> Void,
+         onCancel: @escaping ([UIImage], [Date]) -> Void) {
         _items = State(initialValue: zip(images, dates).map { Item(image: $0.0, date: $0.1) })
         self.onConfirm = onConfirm
         self.onCancel = onCancel
@@ -69,16 +72,25 @@ struct OrderConfirmView: View {
         .navigationBarBackButtonHidden(true)
         .toolbar {
             ToolbarItem(placement: .cancellationAction) {
-                Button("取消") { onCancel() }
+                Button("取消") {
+                    // 取消也把当前选中的图片回传，外层保存为唯一组后直接返回。
+                    onCancel(currentImages(), currentDates())
+                }
             }
             ToolbarItem(placement: .confirmationAction) {
                 Button("下一步") {
-                    // 重新赋予严格递增的日期，保证后续按创建时间排序时顺序不变。
-                    let now = Date()
-                    let orderedDates = items.indices.map { now.addingTimeInterval(Double($0)) }
-                    onConfirm(items.map { $0.image }, orderedDates)
+                    onConfirm(currentImages(), currentDates())
                 }
             }
         }
+    }
+
+    /// 当前顺序的图片。
+    private func currentImages() -> [UIImage] { items.map { $0.image } }
+
+    /// 重新赋予严格递增的日期，保证后续按创建时间排序时顺序不变。
+    private func currentDates() -> [Date] {
+        let now = Date()
+        return items.indices.map { now.addingTimeInterval(Double($0)) }
     }
 }
