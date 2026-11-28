@@ -55,28 +55,25 @@ struct HomeView: View {
                 Text("在任意 App 里一边滚动一边连续截图，回到这里选择那一组截图即可拼接。")
                     .font(.footnote)
                     .foregroundStyle(.secondary)
+
+                Button {
+                    AppLog.write(">>> User tapped 选择更多图片")
+                    showingImportFlow = true
+                } label: {
+                    Label("选择更多图片", systemImage: "photo.badge.plus")
+                        .frame(maxWidth: .infinity)
+                }
+                .buttonStyle(.borderedProminent)
             }
 
             if isLoading {
                 HStack { ProgressView(); Text("正在查找截图…") }
             } else if groups.isEmpty {
-                VStack(spacing: 16) {
-                    Button {
-                        AppLog.write(">>> User tapped 选择更多图片")
-                        showingImportFlow = true
-                    } label: {
-                        Label("选择更多图片", systemImage: "photo.badge.plus")
-                            .frame(maxWidth: .infinity)
-                    }
-                    .buttonStyle(.borderedProminent)
-
-                    ContentUnavailableView(
-                        "没有找到成组的截图",
-                        systemImage: "photo.on.rectangle.angled",
-                        description: Text("连续拍摄的两张以上、尺寸相同的截图会显示在这里。也可以点上方按钮手动选择图片拼接。")
-                    )
-                }
-                .listRowInsets(EdgeInsets())
+                ContentUnavailableView(
+                    "没有找到成组的截图",
+                    systemImage: "photo.on.rectangle.angled",
+                    description: Text("连续拍摄的两张以上、尺寸相同的截图会显示在这里。也可以点上方按钮手动选择图片拼接。")
+                )
             } else {
                 ForEach(groups) { group in
                     NavigationLink {
