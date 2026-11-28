@@ -21,6 +21,8 @@ enum PickedGroupStore {
     static func save(images: [UIImage], dates: [Date]) -> ScreenshotGroup? {
         guard images.count >= 2 else { return nil }
         let fm = FileManager.default
+        // 每次选择都当作唯一一次：先清空之前保存的手动组。
+        clearAll()
         try? fm.createDirectory(at: root, withIntermediateDirectories: true)
 
         let groupID = "g\(Int(Date().timeIntervalSince1970 * 1000))"
@@ -48,6 +50,18 @@ enum PickedGroupStore {
 
         AppLog.write("PickedGroupStore saved group \(groupID) with \(images.count) images")
         return makeGroup(dir: dir, meta: meta)
+    }
+
+    /// 清空所有已保存的手动组。
+    static func clearAll() {
+        let fm = FileManager.default
+        guard fm.fileExists(atPath: root.path) else { return }
+        if let entries = try? fm.contentsOfDirectory(at: root, includingPropertiesForKeys: nil) {
+            for entry in entries {
+                try? fm.removeItem(at: entry)
+            }
+        }
+        AppLog.write("PickedGroupStore cleared all previous groups")
     }
 
     /// 读取所有已保存的手动组，按保存时间从新到旧。

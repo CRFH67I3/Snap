@@ -38,8 +38,16 @@ struct HomeView: View {
                 ImportFlowView(
                     images: $importedImages,
                     dates: $importedDates,
-                    onFinish: { showingImportFlow = false },
-                    onCancel: { showingImportFlow = false }
+                    onFinish: {
+                        AppLog.write("import flow finished -> auto reload")
+                        showingImportFlow = false
+                        reload()
+                    },
+                    onCancel: {
+                        AppLog.write("import flow cancelled -> auto reload")
+                        showingImportFlow = false
+                        reload()
+                    }
                 )
             }
         }
