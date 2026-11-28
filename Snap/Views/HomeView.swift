@@ -62,6 +62,7 @@ struct HomeView: View {
             } else if groups.isEmpty {
                 VStack(spacing: 16) {
                     Button {
+                        AppLog.write(">>> User tapped 选择更多图片")
                         showingImportFlow = true
                     } label: {
                         Label("选择更多图片", systemImage: "photo.badge.plus")

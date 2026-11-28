@@ -30,15 +30,21 @@ struct ImportFlowView: View {
                         images: images,
                         dates: dates,
                         onConfirm: { orderedImages, orderedDates in
+                            AppLog.write("OrderConfirm onConfirm: \(orderedImages.count) images")
                             images = orderedImages
                             dates = orderedDates
                             if let group = PhotoLibraryService.group(fromPickedImages: images, creationDates: dates) {
+                                AppLog.write("group created with \(group.count) items -> editing")
                                 phase = .editing(group)
                             } else {
+                                AppLog.write("group creation FAILED (<2 images) -> cancel")
                                 onCancel()
                             }
                         },
-                        onCancel: onCancel
+                        onCancel: {
+                            AppLog.write("OrderConfirm cancelled")
+                            onCancel()
+                        }
                     )
                 }
             case .editing(let group):
@@ -58,11 +64,19 @@ struct ImportFlowView: View {
         )) {
             ImagePicker(
                 onPick: { pickedImages, pickedDates in
-                    guard !pickedImages.isEmpty else { onCancel(); return }
+                    AppLog.write("ImportFlow onPick received \(pickedImages.count) images")
+                    guard !pickedImages.isEmpty else {
+                        AppLog.write("onPick empty -> cancel")
+                        onCancel()
+                        return
+                    }
                     images = pickedImages
                     dates = pickedDates
                     // 延迟一帧切换，让 sheet 先关闭再换内容，转场更稳。
-                    DispatchQueue.main.async { phase = .ordering }
+                    DispatchQueue.main.async {
+                        AppLog.write("switching phase -> ordering")
+                        phase = .ordering
+                    }
                 },
                 onDismiss: {}
             )

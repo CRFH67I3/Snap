@@ -13,6 +13,7 @@ struct ImagePicker: UIViewControllerRepresentable {
     let onDismiss: () -> Void
 
     func makeUIViewController(context: Context) -> PHPickerViewController {
+        AppLog.write("ImagePicker makeUIViewController")
         var configuration = PHPickerConfiguration(photoLibrary: .shared())
         configuration.filter = .images
         configuration.selectionLimit = 0 // 不限制选择数量
@@ -37,19 +38,29 @@ struct ImagePicker: UIViewControllerRepresentable {
         }
 
         func picker(_ picker: PHPickerViewController, didFinishPicking results: [PHPickerResult]) {
-            // 先让外层关闭选择器，避免手动 dismiss 与状态切换冲突。
+            AppLog.write("PHPicker didFinish, results=\(results.count)")
             onDismiss()
-            guard !results.isEmpty else { return }
+            guard !results.isEmpty else {
+                AppLog.write("PHPicker results empty -> user cancelled")
+                return
+            }
 
-            // 尽量读取每张图的真实创建时间。用户刚选中的图，其元数据在本地可用，
-            // 因此通常能取到；取不到的再用选择顺序兜底。
+            // 记录每张图的原始信息（选择顺序）。
+            for (i, r) in results.enumerated() {
+                AppLog.write("  result[\(i)] id=\(r.assetIdentifier ?? "nil") canLoadImage=\(r.itemProvider.canLoadObject(ofClass: UIImage.self))")
+            }
+
+            // 尽量读取每张图的真实创建时间。
             let identifiers = results.compactMap { $0.assetIdentifier }
             var datesByIdentifier: [String: Date] = [:]
             if !identifiers.isEmpty {
                 let fetched = PHAsset.fetchAssets(withLocalIdentifiers: identifiers, options: nil)
+                AppLog.write("fetchAssets localIdentifiers=\(identifiers.count) -> fetched=\(fetched.count)")
                 fetched.enumerateObjects { asset, _, _ in
                     datesByIdentifier[asset.localIdentifier] = asset.creationDate ?? .distantPast
                 }
+            } else {
+                AppLog.write("no assetIdentifiers available")
             }
 
             let group = DispatchGroup()
@@ -57,19 +68,29 @@ struct ImagePicker: UIViewControllerRepresentable {
             var loaded: [(index: Int, image: UIImage, date: Date)] = []
 
             for (index, result) in results.enumerated() {
-                guard result.itemProvider.canLoadObject(ofClass: UIImage.self) else { continue }
+                guard result.itemProvider.canLoadObject(ofClass: UIImage.self) else {
+                    AppLog.write("  result[\(index)] skipped: cannot load UIImage")
+                    continue
+                }
                 group.enter()
-                result.itemProvider.loadObject(ofClass: UIImage.self) { object, _ in
+                result.itemProvider.loadObject(ofClass: UIImage.self) { object, error in
                     defer { group.leave() }
-                    guard let image = object as? UIImage else { return }
+                    if let error {
+                        AppLog.write("  result[\(index)] load error: \(error.localizedDescription)")
+                        return
+                    }
+                    guard let image = object as? UIImage else {
+                        AppLog.write("  result[\(index)] load returned non-UIImage")
+                        return
+                    }
 
-                    // 有真实创建时间就用它（截图时间 = 正确上下顺序）；
-                    // 否则按选择顺序排在后面。
                     let date: Date
                     if let id = result.assetIdentifier, let real = datesByIdentifier[id] {
                         date = real
+                        AppLog.write("  result[\(index)] loaded image \(Int(image.size.width))x\(Int(image.size.height)), realDate=\(real)")
                     } else {
                         date = Date.distantFuture.addingTimeInterval(-Double(index))
+                        AppLog.write("  result[\(index)] loaded image \(Int(image.size.width))x\(Int(image.size.height)), fallback date")
                     }
 
                     lock.lock()
@@ -78,11 +99,10 @@ struct ImagePicker: UIViewControllerRepresentable {
                 }
             }
 
-            // 直接捕获闭包，避免加载期间 Coordinator 被释放导致回调丢失。
             let callback = onPick
             group.notify(queue: .main) {
-                // 按创建时间从早到晚：最早的（最上面）排在前。
                 let ordered = loaded.sorted { $0.date < $1.date }
+                AppLog.write("loaded \(loaded.count)/\(results.count) images, ordered \(ordered.count), calling onPick")
                 callback(ordered.map { $0.image }, ordered.map { $0.date })
             }
         }

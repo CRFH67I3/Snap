@@ -36,6 +36,8 @@ targets:
       path: Snap/Info.plist
       properties:
         UILaunchScreen: {}
+        UIFileSharingEnabled: true
+        LSSupportsOpeningDocumentsInPlace: true
         UISupportedInterfaceOrientations:
           - UIInterfaceOrientationPortrait
         NSPhotoLibraryUsageDescription: "Snap 需要读取相册中的截图，才能把它们拼接成一张长截图。"
