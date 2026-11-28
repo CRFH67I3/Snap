@@ -57,7 +57,9 @@ enum PickedGroupStore {
             return []
         }
         var result: [(date: Date, group: ScreenshotGroup)] = []
-        for dir in entries where dir.isDirectory {
+        for dir in entries {
+            // 只处理含 meta.json 的目录（每个保存的组都有它）。
+            guard fm.fileExists(atPath: dir.appendingPathComponent("meta.json").path) else { continue }
             guard let group = loadGroup(dir: dir) else { continue }
             let meta = loadMeta(dir: dir)
             result.append((meta?.creationDate ?? .distantPast, group))
